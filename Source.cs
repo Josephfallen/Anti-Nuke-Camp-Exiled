@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -25,8 +25,6 @@ namespace Anti_nuke_camp
         {
             Log.Info("AntiNukeCamp has been loaded successfully!");
             Log.Info("This Plugin is under heavy development");
-
-            Task.Run(async () => await CheckAndUpdatePlugin());
 
             Exiled.Events.Handlers.Warhead.Stopping += OnWarheadStopping;
             Exiled.Events.Handlers.Warhead.Starting += OnWarheadStarting;
@@ -102,91 +100,50 @@ namespace Anti_nuke_camp
             Cassie.Message(message, true, true, true);
         }
 
-        private static async Task<string> CheckAndUpdatePlugin()
+
+        // Command implementations
+        public class ResetActivationCountCommand : ICommand
         {
-            string pluginDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SCP Secret Laboratory", "PluginAPI", "plugins");
-            string pluginPath = Path.Combine(pluginDirectory, "Anti-Camp.dll");
+            public string Command => "resetactivationcount";
+            public string[] Aliases => new string[] { "rac" };
+            public string Description => "Resets the activation count of the nuke";
 
-            string downloadUrl = "https://github.com/Josephfallen/Anti-Nuke-Camp/raw/main/Anti-Camp.dll";
-
-            using (HttpClient client = new HttpClient())
+            public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
             {
-                try
+                // Use the static fields directly
+                if (AntiNukeCamp.IsWarheadLocked)
                 {
-                    Log.Info("Checking for plugin updates...");
-                    byte[] latestPluginData = await client.GetByteArrayAsync(downloadUrl);
-
-                    if (latestPluginData != null && latestPluginData.Length > 0)
-                    {
-                        Log.Info("New plugin version found. Updating...");
-
-                        if (File.Exists(pluginPath))
-                        {
-                            File.Copy(pluginPath, pluginPath + ".bak", true);
-                        }
-
-                        File.WriteAllBytes(pluginPath, latestPluginData);
-                        Log.Info("Plugin updated successfully. Please restart the server to apply the update.");
-
-                        return "Plugin updated successfully. Please restart the server to apply the update.";
-                    }
-                    else
-                    {
-                        Log.Info("No new updates found.");
-                        return "No new updates found.";
-                    }
+                    AntiNukeCamp.activationCount = 0;
+                    response = "Activation count has been reset.";
+                    return true;
                 }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error updating plugin: {ex.Message}");
-                    return $"Error updating plugin: {ex.Message}";
-                }
+
+                response = "Plugin instance not found.";
+                return false;
             }
         }
-    }
 
-    // Command implementations
-    public class ResetActivationCountCommand : ICommand
-    {
-        public string Command => "resetactivationcount";
-        public string[] Aliases => new string[] { "rac" };
-        public string Description => "Resets the activation count of the nuke";
-
-        public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
+        public class CheckStatusCommand : ICommand
         {
-            // Use the static fields directly
-            if (AntiNukeCamp.IsWarheadLocked)
+            public string Command => "checkstatus";
+            public string[] Aliases => new string[] { "status" };
+            public string Description => "Checks the current status of the nuke";
+
+            public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
             {
-                AntiNukeCamp.activationCount = 0;
-                response = "Activation count has been reset.";
+                // Use the static fields directly
+                response = AntiNukeCamp.IsWarheadLocked ? "The nuke is currently locked." : "The nuke is not locked.";
                 return true;
             }
-
-            response = "Plugin instance not found.";
-            return false;
         }
     }
 
-    public class CheckStatusCommand : ICommand
+    public class Config : IConfig
     {
-        public string Command => "checkstatus";
-        public string[] Aliases => new string[] { "status" };
-        public string Description => "Checks the current status of the nuke";
+        public bool IsEnabled { get; set; } = true;
+        public string CommandPrefix { get; set; } = "!";
 
-        public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
-        {
-            // Use the static fields directly
-            response = AntiNukeCamp.IsWarheadLocked ? "The nuke is currently locked." : "The nuke is not locked.";
-            return true;
-        }
+        // Implement the Debug property from IConfig
+        public bool Debug { get; set; } = false;
     }
-}
-
-public class Config : IConfig
-{
-    public bool IsEnabled { get; set; } = true;
-    public string CommandPrefix { get; set; } = "!";
-
-    // Implement the Debug property from IConfig
-    public bool Debug { get; set; } = false;
 }
